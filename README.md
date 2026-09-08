@@ -27,31 +27,31 @@ The app code and your content can have completely independent Git histories. A u
 
 ```text
 Documents/
-  project-manager/       # Frame app repository
+  project-manager/       # Video Planner app repository
   video-workspace/       # Your private content repository
     videos/
     channel.json
 ```
 
-Stop Frame, then choose the content folder on launch:
+Stop Video Planner, then choose the content folder on launch:
 
 ```sh
 python3 server.py --workspace "$HOME/Documents/video-workspace"
 ```
 
-The folder is created if needed. Frame remembers its absolute path in `.frame-local.json`, which is excluded from the app's Git repository. Future `python3 server.py` launches reopen it. Relative paths resolve from the terminal's working directory; `~` is supported. The active folder is printed at startup and shown in video details (also hover over the sidebar's local workspace indicator).
+The folder is created if needed. Video Planner remembers its absolute path in `.Video Planner-local.json`, which is excluded from the app's Git repository. Future `python3 server.py` launches reopen it. Relative paths resolve from the terminal's working directory; `~` is supported. The active folder is printed at startup and shown in video details (also hover over the sidebar's local workspace indicator).
 
-You can use an existing Frame workspace or a cloned content repository. To give a new content folder its own Git history, run:
+You can use an existing Video Planner workspace or a cloned content repository. To give a new content folder its own Git history, run:
 
 ```sh
 git -C "$HOME/Documents/video-workspace" init
 ```
 
-Commits, remotes, and sync remain manual. Frame does not initialize repositories or change Git settings automatically. The old app-local `workspace/` folder is also excluded from the app's Git repository.
+Commits, remotes, and sync remain manual. Video Planner does not initialize repositories or change Git settings automatically. The old app-local `workspace/` folder is also excluded from the app's Git repository.
 
-**Choosing a different folder does not move or copy existing content.** To migrate, stop Frame and copy the old workspace's contents into the new folder, then launch with `--workspace`. Keep the old copy until you have verified the new workspace. If the destination already has content, resolve any filename conflicts before copying. Switch back by passing the old folder to `--workspace`.
+**Choosing a different folder does not move or copy existing content.** To migrate, stop Video Planner and copy the old workspace's contents into the new folder, then launch with `--workspace`. Keep the old copy until you have verified the new workspace. If the destination already has content, resolve any filename conflicts before copying. Switch back by passing the old folder to `--workspace`.
 
-Without a saved choice, Frame continues using the original app-local `workspace/` folder. Workspace selection currently happens at launch; there is no in-app folder picker yet.
+Without a saved choice, Video Planner continues using the original app-local `workspace/` folder. Workspace selection currently happens at launch; there is no in-app folder picker yet.
 
 ## Your files
 
