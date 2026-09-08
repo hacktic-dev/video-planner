@@ -1,11 +1,10 @@
-# Frame
+# Video Planner
 
 A local video and channel planning workspace. No accounts or cloud storage.
 
 ## Run
 
 ```sh
-cd /Users/fsicher/Documents/project-manager
 python3 server.py
 ```
 
