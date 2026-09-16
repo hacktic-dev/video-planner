@@ -60,9 +60,30 @@ def validate(v):
             if key == 'views' and not number.is_integer(): raise ValueError('Views must be a whole number')
     for key in ['reviewDate', 'measuredOn']:
         if v.get(key): date.fromisoformat(v[key])
-    for key, options in {'reviewStatus': ['Not reviewed', 'In progress', 'Reviewed'], 'window': ['24 hours', '7 days', '28 days', 'Lifetime'], 'repeat': ['Undecided', 'Yes', 'With changes', 'No']}.items():
+    if not isinstance(v.get('window', ''), str) or len(v.get('window', '')) > 120: raise ValueError('Invalid measurement window')
+    for key, options in {'reviewStatus': ['Not reviewed', 'In progress', 'Reviewed'], 'repeat': ['Undecided', 'Yes', 'With changes', 'No']}.items():
         if key in v and v[key] not in options: raise ValueError('Invalid ' + key)
     return v
+
+def validate_todos(todos):
+    if not isinstance(todos, list): raise ValueError('Invalid to-dos')
+    by_id = {}
+    for t in todos:
+        if not isinstance(t, dict) or not isinstance(t.get('id'), str) or not re.fullmatch('[a-f0-9]{32}', t['id']) or t['id'] in by_id: raise ValueError('Invalid to-do ID')
+        by_id[t['id']] = t
+        if not isinstance(t.get('text'), str) or not t['text'].strip() or len(t['text']) > 500: raise ValueError('Invalid to-do text')
+        if not isinstance(t.get('done'), bool) or t.get('priority') not in ['low', 'normal', 'high', 'urgent']: raise ValueError('Invalid to-do status')
+        if not isinstance(t.get('parentId', ''), str): raise ValueError('Invalid parent')
+        deadline = t.get('deadline', '')
+        if not isinstance(deadline, str): raise ValueError('Invalid deadline')
+        if deadline:
+            if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', deadline): raise ValueError('Invalid deadline')
+            date.fromisoformat(deadline)
+    for t in todos:
+        seen = {t['id']}; parent = t.get('parentId', '')
+        while parent:
+            if parent not in by_id or parent in seen: raise ValueError('Invalid parent hierarchy')
+            seen.add(parent); parent = by_id[parent].get('parentId', '')
 
 def validate_knowledge(channel):
     for kind in ['learnings', 'directions']:
@@ -95,8 +116,21 @@ def validate_notebook(v):
         if n['color'] not in ['plain', 'yellow', 'blue', 'pink', 'green']: raise ValueError('Invalid note colour')
         if not isinstance(n.get('videoIds'), list) or any(not isinstance(x, str) or not re.fullmatch('[a-f0-9]{32}', x) for x in n['videoIds']): raise ValueError('Invalid video links')
         if not isinstance(n.get('onBoard'), bool): raise ValueError('Invalid board placement')
+        if n.get('kind', 'note') not in ['note', 'text', 'heading']: raise ValueError('Invalid board item')
+        for k in ['width', 'height']:
+            if k in n and (isinstance(n[k], bool) or not isinstance(n[k], (int, float)) or not math.isfinite(n[k]) or not 80 <= n[k] <= 3000): raise ValueError('Invalid note size')
         for k in ['x', 'y']:
             if not isinstance(n.get(k), (int, float)) or not math.isfinite(n[k]): raise ValueError('Invalid note position')
+    if not isinstance(v.get('texts', []), list): raise ValueError('Invalid board texts')
+    text_ids = set(ids)
+    for t in v.get('texts', []):
+        if not isinstance(t, dict) or not isinstance(t.get('id'), str) or not re.fullmatch('[a-f0-9]{32}', t['id']) or t['id'] in text_ids: raise ValueError('Invalid board text ID')
+        text_ids.add(t['id'])
+        if t.get('kind') not in ['heading', 'text'] or not isinstance(t.get('text'), str): raise ValueError('Invalid board text')
+        for k in ['x', 'y', 'width', 'height']:
+            if k not in t and k in ['width', 'height']: continue
+            value = t.get(k)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or (k in ['width', 'height'] and not 80 <= value <= 3000): raise ValueError('Invalid board text geometry')
     for e in v['edges']:
         if not isinstance(e, dict) or e.get('from') not in ids or e.get('to') not in ids: raise ValueError('Invalid connection')
     for stroke in v['strokes']:
@@ -106,6 +140,10 @@ def validate_notebook(v):
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs): super().__init__(*args, directory=str(ROOT / 'web'), **kwargs)
+    def end_headers(self):
+        self.send_header('Cache-Control', 'no-store')
+        super().end_headers()
+
     def reply(self, data, status=200):
         body = json.dumps(data).encode()
         self.send_response(status); self.send_header('Content-Type', 'application/json'); self.send_header('Cache-Control', 'no-store'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
@@ -173,6 +211,7 @@ class Handler(SimpleHTTPRequestHandler):
                     if not isinstance(v, dict) or any(not isinstance(v.get(k, ''), str) for k in ['name', 'mission', 'pillars', 'notes']): raise ValueError('Invalid channel')
                     for t in v.get('tasks', []):
                         if not isinstance(t.get('text'), str) or not isinstance(t.get('done'), bool): raise ValueError('Invalid task')
+                    validate_todos(v.get('todos', []))
                     validate_knowledge(v)
                     save(DATA / 'channel.json', v); self.reply(v)
                 else: self.reply({'error': 'Not found'}, 404)

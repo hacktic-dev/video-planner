@@ -39,11 +39,11 @@ PORT=4320 python3 server.py
 * Learnings and channel directions
 * Shared notebook and freeform visual board
 * Thumbnail/reference uploads and sketching
-* Archive and restore
+* Board and Published video tabs
 * Command-K search
 * Command-S save on macOS, or Ctrl-S on other platforms
 
-Nothing is permanently deleted through the UI.
+Deleted videos can be restored from Trash. Deleted notebook items can be restored using Undo during the current session.
 
 ## Saving
 
@@ -201,18 +201,9 @@ Metrics are entered manually. Supported metrics currently include:
 * Average percentage viewed
 * Production hours
 
-The **Results** page compares published videos using one of four measurement windows:
+The measurement window accepts presets (24 hours, 7 days, 28 days, Lifetime) or custom text such as “14 days after publishing”. Blank metrics remain blank. Each video has one editable metric snapshot. Measurement dates are no longer shown, and the separate Results page has been removed.
 
-* 24 hours
-* 7 days
-* 28 days
-* Lifetime
-
-Blank metrics remain blank rather than being interpreted as zero.
-
-Each video currently has one editable metric snapshot rather than a historical series. Updating the metrics replaces the previous snapshot.
-
-The measurement date and measurement window should therefore match the source data you entered.
+Use the header's **Dark mode / Light mode** button to switch themes. Your choice is remembered in this browser; the initial theme follows your system preference.
 
 ## Learnings and channel directions
 
@@ -243,7 +234,7 @@ Learnings and directions can be archived and restored from their respective list
 
 ## Notebook and freeform board
 
-**Notebook** combines a shared note library with a scrollable 2400 × 1600 freeform board.
+**Notebook** combines a shared note library with a freeform board that supports panning and zooming.
 
 Notes can have:
 
@@ -260,21 +251,16 @@ Video pages also include a **Notes** tab for notes associated with that video.
 
 ### Working with the board
 
-You can add an existing note from the library or double-click empty board space to create one directly.
-
-Drag a note using its top bar. When the bar is focused, the arrow keys can also move it.
-
-Use **Connect** and click two note bodies to draw a connection between them.
-
-Use **Draw** to drag on empty board space and sketch or write by hand.
-
-Use **Erase** to remove a connection or stroke.
-
-**Undo** restores recent note and board edits made during the current session.
-
-Removing a note from the board using its × button only removes that placement. The note remains in the notebook library and remains linked to any associated videos.
-
-Open a note to read or edit its complete contents. Board previews are shortened automatically.
+* Open **Notes** to search the library and filter by video. Cards show titles, excerpts, and related videos.
+* Drag a library card onto the board, or use **Add to board**. Review sections appear in the same sidebar and can be dragged or added directly. Each imported section becomes an independent note; repeated imports locate/reposition the existing copy without overwriting your edits.
+* Double-click empty space to create a note; double-click an existing note to edit it.
+* Drag notes to move them. Drag the bottom-right corner to resize them.
+* Use **Heading** or **Text** to type directly on the board. Double-click to edit; Enter finishes a heading, Ctrl+Enter finishes free text, and Escape cancels. These objects are stored separately from notes, with no tags, images, or video links. Delete removes the text object; Undo restores it. Existing headings migrate automatically.
+* Hold **Shift** and drag a rectangle to select notes, text, headings, and drawings. Shift-click a note to toggle its selection. Drag a selected item to move the group.
+* Press **Delete** or **Backspace** to remove selected items from the board. Notes remain in the library, linked to their videos, and can be added back. Removing a note from the board clears its connections.
+* **Delete** in the note editor removes the note itself. **Undo** restores recent changes during the current session.
+* Drag a note's dot onto another note to connect them. Connections follow the facing edges as notes move or resize.
+* Use the pen to sketch; drag empty paper to pan and scroll to zoom. **Fit** frames your board.
 
 ### Notebook saving and conflicts
 
@@ -290,7 +276,7 @@ Automatic merging is not currently implemented, so using a single editing tab is
 
 The structured prompts in the video's **Review** tab remain available.
 
-**Save as note** creates a notebook note linked to the video using the written review reflection.
+**Add section as note** copies an individual review section into a linked note. You can also add review sections directly from the notebook sidebar.
 
 Earlier structured learnings and directions remain accessible under:
 
@@ -376,3 +362,25 @@ Check the JavaScript syntax with:
 ```sh
 node --check web/app.js
 ```
+
+Browser regression checks (requires Playwright and Microsoft Edge):
+
+```sh
+node tests/notebook-browser.cjs
+```
+
+Set `BROWSER_CHANNEL` to `chrome` to run them in Chrome instead. The browser checks use an isolated, mocked workspace and do not edit your content.
+
+## Published videos
+
+Videos has **Board** and **Published** tabs. A video in the Published stage stays on the board for seven calendar days after its publish date, then appears in the Published tab automatically. This is calculated from the date when viewing the app, so it also works if the app was closed. An open Videos page rechecks when the day changes.
+
+Videos without a publish date stay on the board until a date is entered. Future dates and videos in other stages do not move. Changing the stage or date updates the placement. The old Archive navigation and action have been removed; previously archived videos follow the same stage/date rules and remain accessible. Trash remains separate.
+
+## Checklist and production stages
+
+Built-in production tasks and stages stay in sync. Checking a production step completes earlier steps; unchecking one reopens later steps. Moving a video between stages updates those checkboxes. Custom tasks remain independent.
+
+Upload and Publish are separate tasks. Upload stays in Ready. Checking Publish, moving into Published, or creating a Published video sets the publish date to today. Moving an already published video to the same stage preserves its existing date. Existing combined Upload & publish tasks split automatically, retaining their completion state.
+
+Production regression check: `node tests/production.cjs`.

@@ -1,0 +1,10 @@
+// Shared production checklist rules. Custom tasks never affect stage progression.
+const Production=(()=>{
+ const steps=[['hook','Define the hook','Idea'],['research','Research & prototype','Research'],['script','Write the script','Script'],['voiceover','Record voiceover','Record'],['edit','Edit the video','Edit'],['packaging','Create title & thumbnail','Edit'],['upload','Upload','Ready'],['publish','Publish','Ready']];
+ const stages=['Idea','Research','Script','Record','Edit','Ready','Published'];
+ function normalize(v){v.tasks ||= [];v.tasks=v.tasks.flatMap(t=>t.text==='Upload & publish'?[{...t,text:'Upload',productionStep:'upload'},{...t,text:'Publish',productionStep:'publish'}]:[t]);for(const t of v.tasks){if(['Record footage','Record Voiceover'].includes(t.text))t.text='Record voiceover';if(!t.productionStep){const step=steps.find(s=>s[1]===t.text);if(step)t.productionStep=step[0]}}return v;}
+ function defaults(){return steps.map(([productionStep,text])=>({productionStep,text,done:false}));}
+ function setStage(v,stage,today){normalize(v);const previous=v.stage;v.stage=stage;const rank=stages.indexOf(stage);for(const t of v.tasks){const step=steps.find(s=>s[0]===t.productionStep);if(step)t.done=stages.indexOf(step[2])<rank;}if(stage==='Published'&&previous!=='Published')v.date=today;return v;}
+ function check(v,index,done,today){normalize(v);const task=v.tasks[index];if(!task)return;task.done=done;const stepIndex=steps.findIndex(s=>s[0]===task.productionStep);if(stepIndex<0)return;for(const t of v.tasks){const i=steps.findIndex(s=>s[0]===t.productionStep);if(i<0)continue;if(done&&i<=stepIndex)t.done=true;else if(!done&&i>=stepIndex)t.done=false;}const previous=v.stage;const next=steps.find(([key])=>!v.tasks.some(t=>t.productionStep===key&&t.done));v.stage=next?next[2]:'Published';if(task.productionStep==='publish'&&done){v.stage='Published';v.date=today;}else if(v.stage==='Published'&&previous!=='Published')v.date=today;}
+ return {normalize,defaults,setStage,check};
+})();

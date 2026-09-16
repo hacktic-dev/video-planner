@@ -69,6 +69,25 @@ class WorkspaceTest(unittest.TestCase):
         saved['revision']=2; saved['edges'][0]['to']='missing'
         with self.assertRaises(urllib.error.HTTPError): self.request('notebook',saved)
 
+    def test_custom_windows_and_board_sizes(self):
+        video=self.request('video', {'title':'Custom window', 'stage':'Published', 'window':'14 days after publishing'})
+        self.assertEqual(video['window'], '14 days after publishing')
+        for bad in [123, 'x'*121]:
+            with self.assertRaises(urllib.error.HTTPError): self.request('video', {**video, 'window':bad})
+        note={'id':'e'*32,'title':'Heading','body':'Independent text','tags':'','color':'plain','videoIds':[], 'x':10,'y':20,'onBoard':True,'kind':'heading','width':420,'height':180}
+        saved=self.request('notebook', {'revision':0,'notes':[note],'edges':[],'strokes':[]})
+        self.assertEqual(self.request('workspace')['notebook']['notes'][0], note)
+        for bad in [0, -1, 3001, 'wide', True]:
+            with self.assertRaises(urllib.error.HTTPError): self.request('notebook', {**saved, 'notes':[{**note, 'width':bad}]})
+
+    def test_independent_board_text(self):
+        text={'id':'f'*32,'kind':'heading','text':'Next ideas','x':20,'y':50}
+        book=self.request('notebook', {'revision':0,'notes':[],'texts':[text],'edges':[],'strokes':[]})
+        self.assertEqual(self.request('workspace')['notebook']['texts'], [text])
+        self.assertEqual(book['notes'], [])
+        for bad in [{**text,'x':'bad'}, {**text,'kind':'note'}, {**text,'text':12}]:
+            with self.assertRaises(urllib.error.HTTPError): self.request('notebook', {**book,'texts':[bad]})
+
     def test_image_and_sponsor_round_trip(self):
         import base64
         png=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jD1kAAAAASUVORK5CYII=')
