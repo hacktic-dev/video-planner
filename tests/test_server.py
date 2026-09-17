@@ -80,6 +80,17 @@ class WorkspaceTest(unittest.TestCase):
         for bad in [0, -1, 3001, 'wide', True]:
             with self.assertRaises(urllib.error.HTTPError): self.request('notebook', {**saved, 'notes':[{**note, 'width':bad}]})
 
+    def test_notebook_knowledge_map_kinds(self):
+        kinds=['video','trait','hypothesis']
+        notes=[]
+        for i, kind in enumerate(kinds):
+            notes.append({'id':str(i+1)*32,'kind':kind,'title':kind.title(),'body':'','tags':'','color':'plain','videoIds':[],'x':100+i*250,'y':120,'onBoard':True})
+        saved=self.request('notebook', {'revision':0,'notes':notes,'edges':[{'from':notes[0]['id'],'to':notes[1]['id']},{'from':notes[1]['id'],'to':notes[2]['id']}],'strokes':[]})
+        self.assertEqual([n['kind'] for n in saved['notes']], kinds)
+        self.assertEqual(len(saved['edges']), 2)
+        with self.assertRaises(urllib.error.HTTPError):
+            self.request('notebook', {**saved,'notes':[{**notes[0],'kind':'evidence'}]})
+
     def test_independent_board_text(self):
         text={'id':'f'*32,'kind':'heading','text':'Next ideas','x':20,'y':50}
         book=self.request('notebook', {'revision':0,'notes':[],'texts':[text],'edges':[],'strokes':[]})

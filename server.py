@@ -116,7 +116,7 @@ def validate_notebook(v):
         if n['color'] not in ['plain', 'yellow', 'blue', 'pink', 'green']: raise ValueError('Invalid note colour')
         if not isinstance(n.get('videoIds'), list) or any(not isinstance(x, str) or not re.fullmatch('[a-f0-9]{32}', x) for x in n['videoIds']): raise ValueError('Invalid video links')
         if not isinstance(n.get('onBoard'), bool): raise ValueError('Invalid board placement')
-        if n.get('kind', 'note') not in ['note', 'text', 'heading']: raise ValueError('Invalid board item')
+        if n.get('kind', 'note') not in ['note', 'text', 'heading', 'video', 'trait', 'hypothesis']: raise ValueError('Invalid board item')
         for k in ['width', 'height']:
             if k in n and (isinstance(n[k], bool) or not isinstance(n[k], (int, float)) or not math.isfinite(n[k]) or not 80 <= n[k] <= 3000): raise ValueError('Invalid note size')
         for k in ['x', 'y']:
