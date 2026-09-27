@@ -11,6 +11,7 @@ DATA = ROOT / 'workspace'
 CONFIG = ROOT / '.frame-local.json'
 LOCK = threading.Lock()
 STAGES = ['Idea', 'Research', 'Script', 'Record', 'Edit', 'Ready', 'Published']
+COLORS = ['plain', 'red', 'orange', 'amber', 'yellow', 'lime', 'green', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose']
 
 def atomic(path, content):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -38,6 +39,48 @@ def configure_workspace(selected=None):
         save(CONFIG, {'workspace': str(folder)})
     return folder
 
+def validate_video_note(n, seen):
+    if not isinstance(n, dict): raise ValueError('Invalid note')
+    ident = n.get('id', '')
+    if not isinstance(ident, str) or not re.fullmatch('[a-f0-9]{32}', ident) or ident in seen: raise ValueError('Invalid note ID')
+    seen.add(ident)
+    for key in ['title', 'body']:
+        if not isinstance(n.get(key, ''), str): raise ValueError('Invalid note ' + key)
+    tags = n.get('tags', [])
+    if not isinstance(tags, list) or any(not isinstance(t, str) for t in tags): raise ValueError('Invalid note tags')
+    if n.get('color', 'plain') not in COLORS: raise ValueError('Invalid note colour')
+    if not isinstance(n.get('onBoard', False), bool): raise ValueError('Invalid board placement')
+    images = n.get('images', [])
+    if not isinstance(images, list): raise ValueError('Invalid note images')
+    for a in images:
+        if not isinstance(a, dict) or not isinstance(a.get('path', ''), str) or not isinstance(a.get('name', ''), str): raise ValueError('Invalid note image')
+    for k in ['x', 'y']:
+        value = n.get(k, 0)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value): raise ValueError('Invalid note position')
+    for k in ['width', 'height']:
+        if k in n and (isinstance(n[k], bool) or not isinstance(n[k], (int, float)) or not math.isfinite(n[k]) or not 80 <= n[k] <= 3000): raise ValueError('Invalid note size')
+
+def validate_video_board(b, note_ids):
+    if b is None: return
+    if not isinstance(b, dict): raise ValueError('Invalid board')
+    for key in ['texts', 'edges', 'strokes']:
+        if not isinstance(b.get(key, []), list): raise ValueError('Invalid board ' + key)
+    text_ids = set(note_ids)
+    for t in b['texts']:
+        if not isinstance(t, dict) or not isinstance(t.get('id'), str) or not re.fullmatch('[a-f0-9]{32}', t['id']) or t['id'] in text_ids: raise ValueError('Invalid board text ID')
+        text_ids.add(t['id'])
+        if t.get('kind') not in ['heading', 'text'] or not isinstance(t.get('text'), str): raise ValueError('Invalid board text')
+        for k in ['x', 'y', 'width', 'height']:
+            if k not in t and k in ['width', 'height']: continue
+            value = t.get(k)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or (k in ['width', 'height'] and not 80 <= value <= 3000): raise ValueError('Invalid board text geometry')
+    for e in b['edges']:
+        if not isinstance(e, dict) or e.get('from') not in text_ids or e.get('to') not in text_ids: raise ValueError('Invalid connection')
+    for stroke in b['strokes']:
+        if not isinstance(stroke, dict) or not isinstance(stroke.get('points'), list) or len(stroke['points']) > 20000: raise ValueError('Invalid drawing')
+        for point in stroke['points']:
+            if not isinstance(point, list) or len(point) != 2 or any(not isinstance(x, (int, float)) or isinstance(x, bool) or not math.isfinite(x) for x in point): raise ValueError('Invalid drawing point')
+
 def validate(v):
     if not isinstance(v, dict): raise ValueError('Expected an object')
     if not isinstance(v.get('title'), str) or not v['title'].strip(): raise ValueError('A title is required')
@@ -48,6 +91,9 @@ def validate(v):
         date.fromisoformat(v['date'])
     for key in ['hook', 'notes', 'pillar', 'sponsor', 'titles', 'thumbnail', 'hypothesis', 'observations', 'interpretation', 'productionLearning', 'nextTest', 'directionId', 'sourceLearningId']:
         if not isinstance(v.get(key, ''), str): raise ValueError('Invalid ' + key)
+    if v.get('color') and v['color'] not in COLORS: raise ValueError('Invalid color')
+    for key in ['archived', 'isShort']:
+        if key in v and not isinstance(v[key], bool): raise ValueError('Invalid ' + key)
     if not isinstance(v.get('tasks', []), list): raise ValueError('Invalid tasks')
     for t in v.get('tasks', []):
         if not isinstance(t, dict) or not isinstance(t.get('text'), str) or not isinstance(t.get('done'), bool): raise ValueError('Invalid task')
@@ -63,6 +109,12 @@ def validate(v):
     if not isinstance(v.get('window', ''), str) or len(v.get('window', '')) > 120: raise ValueError('Invalid measurement window')
     for key, options in {'reviewStatus': ['Not reviewed', 'In progress', 'Reviewed'], 'repeat': ['Undecided', 'Yes', 'With changes', 'No']}.items():
         if key in v and v[key] not in options: raise ValueError('Invalid ' + key)
+    board_notes = v.get('boardNotes', [])
+    if board_notes is None: board_notes = []
+    if not isinstance(board_notes, list): raise ValueError('Invalid board notes')
+    note_ids = set()
+    for n in board_notes: validate_video_note(n, note_ids)
+    validate_video_board(v.get('board'), note_ids)
     return v
 
 def validate_todos(todos):
@@ -113,7 +165,7 @@ def validate_notebook(v):
         ids.add(n['id'])
         for k in ['title', 'body', 'tags', 'color']:
             if not isinstance(n.get(k), str): raise ValueError('Invalid note ' + k)
-        if n['color'] not in ['plain', 'yellow', 'blue', 'pink', 'green']: raise ValueError('Invalid note colour')
+        if n['color'] not in COLORS: raise ValueError('Invalid note colour')
         if not isinstance(n.get('videoIds'), list) or any(not isinstance(x, str) or not re.fullmatch('[a-f0-9]{32}', x) for x in n['videoIds']): raise ValueError('Invalid video links')
         if not isinstance(n.get('onBoard'), bool): raise ValueError('Invalid board placement')
         if n.get('kind', 'note') not in ['note', 'text', 'heading', 'video', 'trait', 'hypothesis']: raise ValueError('Invalid board item')

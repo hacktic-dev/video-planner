@@ -99,6 +99,24 @@ class WorkspaceTest(unittest.TestCase):
         for bad in [{**text,'x':'bad'}, {**text,'kind':'note'}, {**text,'text':12}]:
             with self.assertRaises(urllib.error.HTTPError): self.request('notebook', {**book,'texts':[bad]})
 
+    def test_video_board_round_trip(self):
+        note={'id':'a'*32,'title':'Hook ideas','body':'![ref](/assets/'+'b'*32+'.png)','tags':['hook'],'color':'yellow','images':[{'path':'/assets/'+'c'*32+'.png','name':'ref.png'}],'onBoard':True,'x':120,'y':80,'width':260,'height':200}
+        board={'texts':[{'id':'d'*32,'kind':'heading','text':'Opening','x':10,'y':20}],'edges':[{'from':'a'*32,'to':'d'*32}],'strokes':[{'points':[[1,2],[3,4]]}]}
+        video=self.request('video', {'title':'Board test', 'stage':'Idea', 'boardNotes':[note], 'board':board})
+        loaded=next(v for v in self.request('workspace')['videos'] if v['id']==video['id'])
+        self.assertEqual(loaded['boardNotes'], [note]); self.assertEqual(loaded['board'], board)
+        for bad in [{'boardNotes':[{**note,'color':'neon'}]}, {'boardNotes':[{'id':'bad','x':0,'y':0}]}, {'board':{**board,'edges':[{'from':note['id'],'to':'e'*32}]}}, {'board':{**board,'texts':[{**board['texts'][0],'kind':'note'}]}}]:
+            with self.assertRaises(urllib.error.HTTPError): self.request('video', {**video, **bad})
+
+    def test_video_color_short_and_archive(self):
+        v=self.request('video', {'title':'Short idea', 'stage':'Idea', 'color':'purple', 'isShort':True, 'archived':False})
+        self.assertEqual(v['color'],'purple'); self.assertTrue(v['isShort'])
+        v['archived']=True; self.request('video', v)
+        loaded=next(x for x in self.request('workspace')['videos'] if x['id']==v['id'])
+        self.assertTrue(loaded['archived']); self.assertTrue(loaded['isShort']); self.assertEqual(loaded['color'],'purple')
+        for key,value in [('color','neon'),('isShort','yes'),('archived','no')]:
+            with self.assertRaises(urllib.error.HTTPError): self.request('video', {**v, key:value})
+
     def test_image_and_sponsor_round_trip(self):
         import base64
         png=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jD1kAAAAASUVORK5CYII=')
