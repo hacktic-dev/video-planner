@@ -26,8 +26,11 @@ PORT=4320 python3 server.py
 
 ## Features
 
-* Overview with project counts, open production tasks, upcoming releases, and pending reviews
-* Seven-stage video production pipeline
+* **Notebook** is the default screen: a freeform board where you brainstorm and create video ideas directly
+* Seven-stage video production pipeline, with separate kanban boards for main videos and shorts
+* A 16-colour palette for notes and video ideas, changeable from a swatch on the card
+* Ideas live on their own Videos screen and only join the kanban once moved to Research
+* Archive unfinished videos and restore them later
 * Search and new-video creation
 * Production checklists
 * Video briefs and Markdown scripts
@@ -37,9 +40,9 @@ PORT=4320 python3 server.py
 * Channel strategy, content pillars, and channel tasks
 * Video performance reviews and manual metrics
 * Learnings and channel directions
-* Shared notebook and freeform visual board
+* Shared notebook, a freeform notes board on every video, and a freeform visual board
 * Thumbnail/reference uploads and sketching
-* Board and Published video tabs
+* Videos tabs: Board, Shorts, Ideas, Published, Archived
 * Command-K search
 * Command-S save on macOS, or Ctrl-S on other platforms
 
@@ -159,7 +162,9 @@ Channel settings, tasks, learnings, and directions are stored in:
 <workspace>/channel.json
 ```
 
-Notebook notes and board data are stored in:
+Each video's own notes and freeform board (`boardNotes` and `board`) are stored inside its JSON record.
+
+Shared notebook notes and board data are stored in:
 
 ```text
 <workspace>/notebook.json
@@ -234,7 +239,9 @@ Learnings and directions can be archived and restored from their respective list
 
 ## Notebook and freeform board
 
-**Notebook** combines a shared note library with a freeform board that supports panning and zooming.
+**Notebook** is the default screen. It combines a shared note library with a freeform board that supports panning and zooming, and is where you brainstorm: **＋ Idea** creates a new video at the Idea stage directly on the board, with cards for your videos, shared traits and hypotheses built from them.
+
+When a video is at the **Idea** stage its hook is shown on its board card, and you can recolour any video card with the swatch in its corner. Video ideas live on the board and the Videos **Ideas** tab until you move them to Research.
 
 Notes can have:
 
@@ -247,7 +254,7 @@ Notes can have:
 
 A note does not need to be linked to a video.
 
-Video pages also include a **Notes** tab for notes associated with that video.
+Every video also has its own freeform **Notes** tab. It uses the same canvas as the shared board — pan and zoom, drag and resize cards, connect them, add headings, text and pen drawings — but its notes belong to that video and are stored inside the video's own record. There is no separate list-style notes view: notes always appear on a freeform board.
 
 ### Working with the board
 
@@ -288,7 +295,7 @@ The copy can then be edited freely and is not synchronized back to the original 
 
 ## Images and sketches
 
-Notebook notes accept uploaded images and sketches.
+Notebook notes accept uploaded images and sketches. Drag image files onto a board (or into the note editor), paste them into the note body, or use the file picker. Images are stored under `assets/` and render inline in the note, and note bodies support Markdown headings, lists, links and `![alt](/assets/…)` images.
 
 The video **Packaging** section also supports:
 
@@ -373,9 +380,9 @@ Set `BROWSER_CHANNEL` to `chrome` to run them in Chrome instead. The browser che
 
 ## Published videos
 
-Videos has **Board** and **Published** tabs. A video in the Published stage stays on the board for seven calendar days after its publish date, then appears in the Published tab automatically. This is calculated from the date when viewing the app, so it also works if the app was closed. An open Videos page rechecks when the day changes.
+Videos has **Board**, **Shorts**, **Ideas**, **Published**, and **Archived** tabs. The Board holds main videos and the Shorts tab holds videos flagged as short-form; a video in the Published stage stays on its board for seven calendar days after its publish date, then appears in Published automatically. This is calculated from the date when viewing the app, so it also works if the app was closed. An open Videos page rechecks when the day changes.
 
-Videos without a publish date stay on the board until a date is entered. Future dates and videos in other stages do not move. Changing the stage or date updates the placement. The old Archive navigation and action have been removed; previously archived videos follow the same stage/date rules and remain accessible. Trash remains separate.
+Videos without a publish date stay on their board until a date is entered. Future dates and videos in other stages do not move. Changing the stage or date updates the placement. Videos whose stage is **Idea** are kept off the kanban and shown on the **Ideas** tab; moving one to Research puts it on the appropriate board. Unfinished videos can be moved to **Archived** from their detail page and restored from the Archived tab. Trash remains separate.
 
 ## Checklist and production stages
 
