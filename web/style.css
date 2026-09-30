@@ -62,3 +62,9 @@ main.todos-page{max-width:none;margin:0;padding-top:28px}main.todos-page> *{max-
 .tab-count{font-size:10px;color:var(--muted)}
 .archived-item{display:flex;flex-direction:column;gap:8px}
 .check{display:flex;align-items:center;gap:8px}
+#note-board .board-note,#note-board .board-text,#note-board #board-ink line,#note-board #board-ink polyline{transition:opacity .18s ease}
+#note-board.focusing .board-note,#note-board.focusing .board-text{opacity:.18}
+#note-board.focusing .board-note.focus-on,#note-board.focusing .board-text.focus-on{opacity:1}
+#note-board.focusing #board-ink line{opacity:.15}
+#note-board.focusing #board-ink line.focus-edge{opacity:1}
+#note-board.focusing #board-ink polyline{opacity:.15}

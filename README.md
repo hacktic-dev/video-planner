@@ -281,6 +281,7 @@ Every video also has its own freeform **Notes** tab. It uses the same canvas as 
 * Drag a library card onto the board, or use **Add to board**. Review sections appear in the same sidebar and can be dragged or added directly. Each imported section becomes an independent note; repeated imports locate/reposition the existing copy without overwriting your edits.
 * Double-click empty space to create a note; double-click an existing note to edit it.
 * Drag notes to move them. Drag the bottom-right corner to resize them.
+* Click a card to focus it: the card and its directly connected cards and connections stay bright while everything else fades. Hovering alone previews the same focus, and clicking empty space clears it. Only one-hop connections are highlighted.
 * Use **Heading** or **Text** to type directly on the board. Double-click to edit; Enter finishes a heading, Ctrl+Enter finishes free text, and Escape cancels. These objects are stored separately from notes, with no tags, images, or video links. Delete removes the text object; Undo restores it. Existing headings migrate automatically.
 * Hold **Shift** and drag a rectangle to select notes, text, headings, and drawings. Shift-click a note to toggle its selection. Drag a selected item to move the group.
 * Press **Delete** or **Backspace** to remove selected items from the board. Notes remain in the library, linked to their videos, and can be added back. Removing a note from the board clears its connections.
@@ -393,6 +394,7 @@ Browser regression checks (requires Playwright and Microsoft Edge):
 ```sh
 node tests/notebook-browser.cjs
 node tests/videos-browser.cjs
+node tests/focus-browser.cjs
 ```
 
 Set `BROWSER_CHANNEL` to `chrome` to run them in Chrome instead. The browser checks use an isolated, mocked workspace and do not edit your content.
