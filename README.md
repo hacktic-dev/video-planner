@@ -85,7 +85,7 @@ The folder is created if it does not already exist.
 Video Planner remembers the selected workspace's absolute path in:
 
 ```text
-.Video Planner-local.json
+.frame-local.json
 ```
 
 This file is excluded from the application Git repository, so your local workspace location is not committed with the app.
@@ -114,9 +114,28 @@ git -C "$HOME/Documents/video-workspace" init
 
 You can then commit and push that repository independently of the Video Planner application repository.
 
-Video Planner does not create Git repositories, configure remotes, commit changes, or synchronize repositories automatically.
+Video Planner does not create Git repositories or configure remotes, but it does commit workspace changes automatically when the workspace is a Git repository (see below). It never pushes or synchronizes repositories.
 
 The legacy app-local `workspace/` directory is also excluded from the application's Git repository.
+
+### Automatic workspace commits
+
+If your workspace folder is a Git repository, Video Planner commits changes automatically while the server is running (on startup, then every 10 minutes by default):
+
+```text
+Autosave 2026-09-20 14:30:00
+```
+
+Change the interval in seconds, or disable it:
+
+```sh
+AUTOCOMMIT_SECONDS=60 python3 server.py
+AUTOCOMMIT_SECONDS=0 python3 server.py
+```
+
+Video Planner only commits; it never pushes. Add a remote and push yourself if you want off-machine backups.
+
+The same background task also removes uploaded images that are no longer referenced by any video, note, script, or channel field. Recently uploaded images are kept for a grace period (`ASSET_GRACE_SECONDS`, default 1 hour), so nothing in use is deleted.
 
 ### Moving an existing workspace
 
@@ -325,7 +344,7 @@ Uploaded files and saved sketches are stored in the workspace's `assets/` direct
 
 Sketches are saved as PNG files.
 
-Cancelled drafts may leave unused image files in `assets/`. Video Planner does not currently remove unused assets automatically.
+Cancelled drafts may briefly leave unused image files in `assets/`. When autosave is enabled, the background maintenance task removes images that are no longer referenced by any video, note, script, or channel field after a grace period (`ASSET_GRACE_SECONDS`, default 1 hour).
 
 ## Sponsorship tracking
 
@@ -344,10 +363,9 @@ This version runs only on localhost and is not yet packaged as a desktop applica
 The following are not currently implemented:
 
 * In-app workspace folder selection
-* Automatic Git commits or synchronization
+* Automatic Git synchronization (pushes); commits are automatic but pushing is not
 * Historical metric snapshots
 * Automatic edit conflict resolution
-* Automatic cleanup of unused assets
 * External calendar integration
 * Email integration
 * Native reminders
@@ -374,6 +392,7 @@ Browser regression checks (requires Playwright and Microsoft Edge):
 
 ```sh
 node tests/notebook-browser.cjs
+node tests/videos-browser.cjs
 ```
 
 Set `BROWSER_CHANNEL` to `chrome` to run them in Chrome instead. The browser checks use an isolated, mocked workspace and do not edit your content.
@@ -381,6 +400,8 @@ Set `BROWSER_CHANNEL` to `chrome` to run them in Chrome instead. The browser che
 ## Published videos
 
 Videos has **Board**, **Shorts**, **Ideas**, **Published**, and **Archived** tabs. The Board holds main videos and the Shorts tab holds videos flagged as short-form; a video in the Published stage stays on its board for seven calendar days after its publish date, then appears in Published automatically. This is calculated from the date when viewing the app, so it also works if the app was closed. An open Videos page rechecks when the day changes.
+
+Each video stores a boolean short-form flag. Adding a video from the Shorts board sets that flag, and the **Video format** dropdown in a video's details lets you move it between the main Board and Shorts at any time.
 
 Videos without a publish date stay on their board until a date is entered. Future dates and videos in other stages do not move. Changing the stage or date updates the placement. Videos whose stage is **Idea** are kept off the kanban and shown on the **Ideas** tab; moving one to Research puts it on the appropriate board. Unfinished videos can be moved to **Archived** from their detail page and restored from the Archived tab. Trash remains separate.
 

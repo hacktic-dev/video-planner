@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Local video workspace. Run: python3 server.py"""
-import argparse, base64, math, json, os, re, tempfile, threading, uuid
+import argparse, base64, math, json, os, re, subprocess, tempfile, threading, time, uuid
 from pathlib import Path
-from datetime import date
+from datetime import date, datetime
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse
 
@@ -12,6 +12,12 @@ CONFIG = ROOT / '.frame-local.json'
 LOCK = threading.Lock()
 STAGES = ['Idea', 'Research', 'Script', 'Record', 'Edit', 'Ready', 'Published']
 COLORS = ['plain', 'red', 'orange', 'amber', 'yellow', 'lime', 'green', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose']
+
+AUTOCOMMIT_SECONDS = int(os.environ.get('AUTOCOMMIT_SECONDS', '600'))
+# Assets younger than this are never removed, so a just-uploaded image is safe.
+ASSET_GRACE_SECONDS = int(os.environ.get('ASSET_GRACE_SECONDS', '3600'))
+ASSET_REF = re.compile(r'/assets/([a-f0-9]{32}\.(?:png|jpg|webp|gif))')
+ASSET_FILE = re.compile(r'[a-f0-9]{32}\.(?:png|jpg|webp|gif)')
 
 def atomic(path, content):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -38,6 +44,83 @@ def configure_workspace(selected=None):
     if selected:
         save(CONFIG, {'workspace': str(folder)})
     return folder
+
+# ---------------------------------------------------------------- workspace git
+
+def referenced_assets():
+    """Every asset filename mentioned in a video, its script, the channel, or the notebook."""
+    refs = set()
+    for folder in (DATA, DATA / 'videos'):
+        if not folder.is_dir():
+            continue
+        for path in folder.iterdir():
+            if not path.is_file() or path.suffix not in ('.json', '.md'):
+                continue
+            try:
+                refs.update(ASSET_REF.findall(path.read_text(encoding='utf-8')))
+            except OSError:
+                pass
+    return refs
+
+def clean_assets():
+    """Delete stored images that are no longer referenced anywhere."""
+    folder = DATA / 'assets'
+    if not folder.is_dir():
+        return 0
+    refs = referenced_assets()
+    cutoff = time.time() - ASSET_GRACE_SECONDS
+    removed = 0
+    for item in folder.iterdir():
+        if not item.is_file() or not ASSET_FILE.fullmatch(item.name) or item.name in refs:
+            continue
+        try:
+            if item.stat().st_mtime > cutoff:
+                continue
+            item.unlink()
+            removed += 1
+        except OSError:
+            pass
+    return removed
+
+def _git(args, check=True):
+    return subprocess.run(['git'] + args, cwd=str(DATA), capture_output=True, text=True, check=check)
+
+def _identity_args():
+    """Use the configured git identity, or a local fallback so autocommit works."""
+    try:
+        name = _git(['config', 'user.name'], check=False).stdout.strip()
+        email = _git(['config', 'user.email'], check=False).stdout.strip()
+    except OSError:
+        return []
+    return [] if name and email else ['-c', 'user.name=Video Planner', '-c', 'user.email=video-planner@localhost']
+
+def commit_workspace(message=None):
+    """Stage and commit the workspace if it is a git repo with changes."""
+    if not (DATA / '.git').exists():
+        return False
+    try:
+        _git(['add', '-A'])
+        if _git(['diff', '--cached', '--quiet'], check=False).returncode == 0:
+            return False
+        stamp = message or ('Autosave ' + datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        _git(_identity_args() + ['commit', '-m', stamp])
+        print('Autocommit: ' + stamp, flush=True)
+        return True
+    except (OSError, subprocess.SubprocessError) as e:
+        print('Autocommit skipped: ' + str(e), flush=True)
+        return False
+
+def autocommit_loop():
+    while True:
+        time.sleep(AUTOCOMMIT_SECONDS)
+        try:
+            with LOCK:
+                removed = clean_assets()
+                if removed:
+                    print(f'Cleanup: removed {removed} unused asset(s)', flush=True)
+                commit_workspace()
+        except Exception as e:  # never let the background thread die
+            print('Autocommit error: ' + str(e), flush=True)
 
 def validate_video_note(n, seen):
     if not isinstance(n, dict): raise ValueError('Invalid note')
@@ -94,6 +177,8 @@ def validate(v):
     if v.get('color') and v['color'] not in COLORS: raise ValueError('Invalid color')
     for key in ['archived', 'isShort']:
         if key in v and not isinstance(v[key], bool): raise ValueError('Invalid ' + key)
+    v['archived'] = bool(v.get('archived', False))
+    v['isShort'] = bool(v.get('isShort', False))
     if not isinstance(v.get('tasks', []), list): raise ValueError('Invalid tasks')
     for t in v.get('tasks', []):
         if not isinstance(t, dict) or not isinstance(t.get('text'), str) or not isinstance(t.get('done'), bool): raise ValueError('Invalid task')
@@ -280,5 +365,12 @@ if __name__ == '__main__':
         parser.error('Could not open workspace: ' + str(e))
     port = int(os.environ.get('PORT', '4310'))
     print(f'Workspace: {DATA}', flush=True)
+    if AUTOCOMMIT_SECONDS > 0:
+        with LOCK:
+            clean_assets()
+        if (DATA / '.git').exists():
+            commit_workspace('Autosave on startup')
+        threading.Thread(target=autocommit_loop, daemon=True).start()
+        print(f'Maintenance: unused assets cleaned and workspace committed every {AUTOCOMMIT_SECONDS}s (set AUTOCOMMIT_SECONDS=0 to disable)', flush=True)
     print(f'Video studio is running at http://127.0.0.1:{port}', flush=True)
     ThreadingHTTPServer(('127.0.0.1', port), Handler).serve_forever()

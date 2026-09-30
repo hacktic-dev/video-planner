@@ -114,8 +114,34 @@ class WorkspaceTest(unittest.TestCase):
         v['archived']=True; self.request('video', v)
         loaded=next(x for x in self.request('workspace')['videos'] if x['id']==v['id'])
         self.assertTrue(loaded['archived']); self.assertTrue(loaded['isShort']); self.assertEqual(loaded['color'],'purple')
+        plain=self.request('video', {'title':'Main video', 'stage':'Idea'})
+        self.assertFalse(plain['isShort'])
         for key,value in [('color','neon'),('isShort','yes'),('archived','no')]:
             with self.assertRaises(urllib.error.HTTPError): self.request('video', {**v, key:value})
+
+    def test_clean_unused_assets(self):
+        import base64, os, time
+        png=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jD1kAAAAASUVORK5CYII=')
+        encoded=base64.b64encode(png).decode()
+        used=self.request('image',{'name':'used.png','data':encoded})
+        unused=self.request('image',{'name':'unused.png','data':encoded})
+        self.request('video', {'title':'Uses image', 'stage':'Idea', 'images':[used]})
+        old=time.time()-7200
+        for asset in (used, unused):
+            os.utime(app.DATA/'assets'/asset['path'].split('/')[-1], (old, old))
+        self.assertEqual(app.clean_assets(), 1)
+        self.assertTrue((app.DATA/'assets'/used['path'].split('/')[-1]).exists())
+        self.assertFalse((app.DATA/'assets'/unused['path'].split('/')[-1]).exists())
+
+    def test_workspace_autocommit(self):
+        import subprocess
+        subprocess.run(['git', 'init', '-q'], cwd=app.DATA, check=True)
+        (app.DATA/'notebook.json').write_text('{"revision": 0, "notes": [], "edges": [], "strokes": []}')
+        self.assertTrue(app.commit_workspace())
+        log=subprocess.run(['git', 'log', '--oneline'], cwd=app.DATA, capture_output=True, text=True).stdout
+        self.assertIn('Autosave', log)
+        # Nothing changed, so no new commit is made.
+        self.assertFalse(app.commit_workspace())
 
     def test_image_and_sponsor_round_trip(self):
         import base64
